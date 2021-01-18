@@ -1,0 +1,243 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Oct 25 12:47:48 2020
+
+@author: Anthony, special thanks to William Jackson for the simulator allowing visualization without access to the leds.
+
+This codes letters into colors and sends colored points corresponding to words in a matrix of leds, allowing for a fun and beautiful visualisation of repetition 
+of similar or identic letters.
+"""
+
+from tkinter import *
+from win32api import GetSystemMetrics
+import time
+#from rpi_ws281x import *
+import argparse
+import time
+import numpy as np
+import random
+import math
+
+# This code uses a led strip simulator used by my roommates and friends to code
+# programs for lighting leds on the roof of our living room
+# It should open another window when the script is ran, and once in full screen
+# a button 'Run', in the bottom will allow you to start the visuals.
+# This code uses letters of the poem to code for colors. Colors are then attributed to leds that will be launched from
+# the first led, then keep traveling, randomly bouncing and changing colors when changing segments (turns in the led path)
+
+PoemString = """me
+no sun out or sky, only cerulean waters.
+a leaned sequoia, me & rain.
+
+the Peaceful raged as neither General won.
+as a wage: tons of wood & granite, undying.
+
+no more sap in me, just bark.
+faded numbness tastes my skin.
+
+scornful walls will disapprove: hold on and smile in contempt."""
+
+voyels = ['a','y','e','i','o','u']
+
+alphabet = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']
+alphabetbysoundcategory = ['b','d','p','t','k','q','c','x','v','g','m','n','l', 'f','s','z','w','h','j']
+sequence = []
+for letter in PoemString:   # comment next 3 lignes and uncomment these to only represent voyels
+    if letter in voyels:
+        sequence += [voyels.index(letter)*45]
+#for letter in PoemString:   # comment next 3 lignes and uncomment these to only represent voyels
+#    if letter in alphabetbysoundcategory:
+#        sequence += [alphabetbysoundcategory.index(letter)*12]
+#for letter in PoemString:
+#    if letter in alphabet:
+#        sequence += [alphabet.index(letter)*10]        
+        
+print('This is the alphabetic code of the poem :', sequence)
+
+
+# LED strip configuration:
+LED_COUNT      = 900      # Number of LED pixels.
+LED_PIN        = 18      # GPIO pin connected to the pixels (18 uses PWM!).
+LED_FREQ_HZ    = 800000  # LED signal frequency in hertz (usually 800khz)
+LED_DMA        = 10      # DMA channel to use for generating signal (try 10)
+LED_BRIGHTNESS = 255     # Set to 0 for darkest and 255 for brightest
+LED_INVERT     = False   # True to invert the signal (when using NPN transistor level shift)
+LED_CHANNEL    = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
+Seq1 = [i for i in range(102)]
+Seq2 = [i for i in range(102, 297)]
+Seq3 = [i for i in range(297,505)]
+Seq4 = [i for i in range(505,702)]
+Seq5 = [i for i in range(702, 900)]
+lseq = [Seq1, Seq2, Seq3, Seq4, Seq5]
+
+positions = []
+pixels = []
+
+master = Tk()
+canvas_width = GetSystemMetrics(0)
+canvas_height = GetSystemMetrics(1)-100
+master.title("LEDs 4K")
+# master.attributes("-fullscreen", True)
+w = Canvas(master,
+           width=canvas_width-50,
+           height=canvas_height-50)
+
+
+def wheel(pos, intensity=1):
+    """Generate rainbow colors across 0-255 positions."""
+    pos = pos%256
+    if pos < 85:
+        return Color(int(intensity * pos * 3), int(intensity*(255 - pos * 3)), 0)
+    elif pos < 170:
+        pos -= 85
+        return Color(int(intensity*(255 - pos * 3)), 0, int(intensity*(pos * 3)))
+    else:
+        pos -= 170
+        return Color(0, int(intensity*(pos * 3)), int(intensity*(255 - pos * 3)))
+
+
+def FireRhymes(strip, wait_ms=0):
+    UFO = []
+    for q in range(10000):
+        newUFO = [] #UFOs are the objects that correspond to the leds lit
+        if q%3 == 0 and len(UFO) < len(sequence):
+            UFO += [[0,1,0, sequence[q//3]]] #1st parameter is position, 
+            #second is relative speed, third is the current segment the object 
+            #is in and last is the color of the object (depends on the letter)
+        for x in UFO :
+            if x[2] == 0:
+                if x[0]<102 : 
+                    strip.setPixelColor(x[0]+x[1], wheel(x[3]))
+                    strip.setPixelColor(x[0], Color(0, 0, 0))
+                    newUFO += [[x[0] + x[1], x[1], x[2], x[3]]]
+                else :
+                    passe = 1#random.randint(0,1)
+                    if passe :
+                        strip.setPixelColor(102, wheel(x[3]))
+                        strip.setPixelColor(101, Color(0, 0, 0))
+                        newUFO += [[102, 1, 1, x[3]]]
+                    else :
+                        strip.setPixelColor(899, wheel(x[3]))
+                        strip.setPixelColor(101, Color(0, 0, 0))
+                        newUFO += [[899, -1, 4, x[3]]]
+            elif x in lseq[x[2]][1:-1] :
+                strip.setPixelColor(x[0]+x[1], wheel(x[3]))
+                strip.setPixelColor(x[0], Color(0, 0, 0))
+                newUFO += [[x[0] + x[1], x[1], x[2], x[3]]]
+            elif x[0]+x[1] in lseq[x[2]]:
+                strip.setPixelColor(x[0]+x[1], wheel( x[3]))
+                strip.setPixelColor(x[0], Color(0, 0, 0))
+                newUFO += [[x[0] + x[1], x[1], x[2], x[3]]]
+            else :
+                passe = 1#random.randint(0,1)
+                if passe :
+                    strip.setPixelColor((x[0] + x[1]-102)%798+102, wheel(x[3]))
+                    strip.setPixelColor(x[0], Color(0, 0, 0))
+                    newUFO += [[(x[0] + x[1]-102)%798+102, x[1], (x[2] + x[1]-1)%4+1, x[3]]]
+                else :
+                    strip.setPixelColor(x[0], wheel((x[3]+13)%256))
+                    newUFO += [[x[0], -x[1], x[2], (x[3]+13)%256]]
+        strip.show()        
+        UFO = newUFO.copy()
+        
+        
+####################################### FIN DU CODE ##############################################
+
+# Create NeoPixel object with appropriate configuration.
+#strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL)
+
+def Color(r,g,b):
+    return [r,g,b]
+    
+def paint(x, y, r, g, b):
+    colorval = "#%02x%02x%02x" % (r, g, b)
+    x1, y1 = (x - 2), (y - 2)
+    x2, y2 = (x + 2), (y + 2)
+    pixel = w.create_oval(x1, y1, x2, y2, fill=colorval, outline=colorval)
+    pixels.append(pixel)
+    
+def repaint(i, r, g, b):
+    colorval = "#%02x%02x%02x" % (r, g, b)
+    pixel = pixels[i]
+    w.itemconfig(pixel, fill=colorval, outline=colorval)
+    x = positions[i][0]
+    y = positions[i][1]
+    if r==0 and g==0 and b==0:
+        x1, y1 = (x), (y)
+        x2, y2 = (x), (y)
+    else:
+        x1, y1 = (x - 3), (y - 3)
+        x2, y2 = (x + 3), (y + 3)
+    w.coords(pixel, x1, y1, x2, y2 )
+    
+def initialize():
+    w.configure(background='black')
+    last = [50, canvas_height-75]
+    for yi in Seq1:
+        newx, newy = last[0], last[1]-6
+        paint(newx, newy, 255, 255, 255)
+        last = [newx, newy]
+        positions.append(last)
+    for yi in Seq2:
+        newx, newy = last[0]+1.5, last[1]+1.9
+        paint(newx, newy, 255, 255, 255)
+        last = [newx, newy]
+        positions.append(last)
+    for yi in Seq3:
+        newx, newy = last[0]+4, last[1]
+        paint(newx, newy, 255, 255, 255)
+        last = [newx, newy]
+        positions.append(last)
+    for yi in Seq4:
+        newx, newy = last[0]+1.5, last[1]-1.9
+        paint(newx, newy, 255, 255, 255)
+        last = [newx, newy]
+        positions.append(last)
+    for yi in Seq5:
+        newx, newy = last[0]-7.17, last[1]
+        paint(newx, newy, 255, 255, 255)
+        last = [newx, newy]
+        positions.append(last)
+
+
+
+class Strip:
+  def __init__(self):
+      return
+  def begin(self):
+      print('Lets start !')
+  def numPixels(self):
+      return LED_COUNT
+  def setPixelColor(self, pixel, color):
+      c = color
+      # print(type(color))
+      if isinstance(color,int):
+          c = [color, color, color]
+      repaint(pixel, c[0], c[1], c[2])
+  def show(self):
+      w.update()
+    
+
+        
+strip = Strip()
+
+
+def run():
+    # for i in range(100):
+    i = 1
+    while True:
+        #### ENTRER LE NOM DE LA FONCTION CI-DESSOUS
+        FireRhymes(strip)
+        i+=1
+    
+    print('Program ended')
+
+w.pack(expand=YES, fill=BOTH)
+
+b = Button(master, bg="white", fg="black", text="Run", command=run)
+b.pack(expand=YES, fill=BOTH)
+
+initialize()
+
+
+mainloop()
